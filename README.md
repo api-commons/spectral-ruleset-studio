@@ -1,0 +1,158 @@
+# Spectral Ruleset Studio
+
+**Turn a prose style guide into an OWNED, GROUNDED, well-named Spectral ruleset — in your browser.**
+
+[studio.apicommons.org](https://studio.apicommons.org) · an [API Commons](https://apicommons.org) tool · free and open under Apache-2.0
+
+---
+
+## Why this exists
+
+In a census of 1,005 public GitHub pipelines running [Spectral](https://github.com/stoplightio/spectral)
+([The State of Spectral in API Pipelines](https://apievangelist.com)), **63% ran the tool on its
+defaults with no rules of their own.** The default ruleset is a config file that ships with the
+software — a hodgepodge of atomic checks with no naming convention, no categories, and no owner.
+Running it is not adopting a standard; it is leaving the settings where you found them.
+
+The reason teams do this is simple: **authoring and owning rules is hard.** So this tool makes the
+hard part cheap.
+
+> A ruleset you did not write is a ruleset nobody at your organization had to think through, which
+> means it is a ruleset nobody owns — and the identical YAML that is a governance artifact in one
+> repository is an empty gesture in another. The file can be byte-for-byte the same. The difference
+> is entirely whether human work exists behind it.
+
+Spectral Ruleset Studio forces that human work, and makes it fast:
+
+- **Distilling prose is the point.** Paste a line from your style guide — *"operations should have
+  meaningful descriptions"* — and the act of turning it into a rule immediately exposes how vague the
+  prose was. Meaningful how? Longer than what? On which operations? The tool flags the vague words
+  and makes you answer. Answering **is** governance happening.
+- **Owned & named.** Every rule gets a convention-following id (`area-subject-check`, e.g.
+  `operations-summary-defined`) and a named owner. No anonymous copied YAML.
+- **Grounded.** No rule ships without a description, a rationale (*why*), and a docs/policy link — so
+  a red build is a teachable moment instead of a cryptic roadblock.
+- **Sparingly enforced.** New rules default to `warning`, not `error`. `error` — the build-failing
+  severity — is a deliberate choice you make, because credibility comes from a small blocking set.
+- **Positive or negative framing.** Write the rule that flags what is wrong, or its twin that
+  recognizes what is right, so you can report progress (*"82% already comply"*) and not only deficits.
+
+## What it does
+
+1. **The studio.** Add rules three ways — paste prose to distill, drop in a grounded starter, or start
+   blank — then tune every field:
+   - a **target** (JSONPath `given`) from a library of common ones (operations, parameters, responses,
+     schemas, info, security, naming, servers/tags);
+   - one of the **9 core Spectral functions** — `defined`, `truthy`, `falsy`, `undefined`, `pattern`,
+     `casing`, `length`, `enumeration`, `alphabetical`, `schema` — with guided arguments, **no custom
+     JavaScript required**;
+   - a **message** and a **severity**;
+   - the **required grounding**: id, description, why, docs link, owner (plus optional
+     who/what/when/where).
+2. **A starter library** of ready, already-grounded rule templates you can add and tune —
+   operationId present, descriptions non-empty, consistent error schema, declared security, kebab-case
+   paths, camelCase properties, tags present, and more.
+3. **Live output.** A valid, categorized `.spectral.yaml` that updates as you type, with a "valid
+   YAML" indicator, a copy button, and a download button. Every rule carries its grounding.
+4. **A tiny CLI** (`@api-common/spectral-ruleset-studio`) that scaffolds a grounded starter ruleset
+   from the same templates, for wiring into a repo or CI from the terminal.
+
+## How grounding is carried
+
+Every emitted rule carries its grounding **two ways**, so the output is both portable and
+machine-readable:
+
+- **In the rule `description`** — a human-readable `Grounding —` block (source statement, why,
+  framing, owner, docs, and any who/what/when/where). This is plain Spectral and works in every
+  version.
+- **Mirrored as an `x-grounding` extension** per rule (toggle off with `--no-ext` or the checkbox) for
+  tooling that wants it structured.
+
+Each rule also sets `documentationUrl` to its docs link. The emitted rulesets lint cleanly under
+Spectral 6.
+
+## Use it
+
+### In the browser
+
+Open **[studio.apicommons.org](https://studio.apicommons.org)**, paste your style-guide statements,
+and build. Nothing leaves your browser.
+
+### From the CLI
+
+```bash
+# Emit the whole grounded starter library to stdout
+npx @api-common/spectral-ruleset-studio
+
+# Only certain areas, written to a file
+npx @api-common/spectral-ruleset-studio operations info -o .spectral.yaml
+
+# A specific rule by id
+npx @api-common/spectral-ruleset-studio --id operations-operationId-defined
+
+# List every template id
+npx @api-common/spectral-ruleset-studio --list
+
+# Leaner output (grounding stays in the description, no x- extensions)
+npx @api-common/spectral-ruleset-studio --no-ext -o .spectral.yaml
+```
+
+**Areas:** `info` · `operations` · `parameters` · `responses` · `schemas` · `security` · `naming` ·
+`servers`
+
+### Then run it (sparingly, and never silently)
+
+```yaml
+- name: Govern the API
+  run: npx @stoplight/spectral-cli lint openapi.yaml --ruleset .spectral.yaml
+```
+
+Turn the findings into something a team will read with the companion
+[Spectral Reporter](https://reporter.apicommons.org).
+
+## Develop
+
+```bash
+npm install
+npm run dev      # the studio on a local Vite server
+npm test         # emitter tests (node --test)
+npm run build    # build the static site to dist/
+npm run cli --   # run the CLI locally, e.g. npm run cli -- --list
+```
+
+The emitter (`src/emit-ruleset.js`), the catalog (`src/catalog.js`) and the templates
+(`src/templates.js`) are pure, dependency-light ESM modules shared **verbatim** between the browser
+SPA and the CLI — so the YAML you copy from the page is byte-for-byte what the terminal writes.
+
+## The 9 functions, and what they check
+
+| Function | Checks |
+| --- | --- |
+| `defined` | the value is present |
+| `truthy` | present and truthy (non-empty) |
+| `falsy` | absent or falsy |
+| `undefined` | not present |
+| `pattern` | matches / does not match a regex |
+| `casing` | follows a casing style (camel, pascal, kebab, snake, …) |
+| `length` | within a min/max length |
+| `enumeration` | one of an allowed set of values |
+| `alphabetical` | keys are in order |
+| `schema` | validates against a JSON Schema |
+
+## Part of the API Commons toolbox
+
+[API Validator](https://validator.apicommons.org) ·
+[Spectral Reporter](https://reporter.apicommons.org) ·
+[API Discovery](https://discover.apicommons.org) ·
+[API Documentation](https://documentation.apicommons.org) ·
+[API Reusability](https://reusability.apicommons.org) ·
+[MCP Install](https://install.apicommons.org)
+
+Open source and free to fork. When you want experts in the loop, API Evangelist offers
+[governance services](https://apievangelist.com/services/) — writing and grounding an owned ruleset
+against your operations, tuning severity and rollout, and wiring it into the pipeline as a gate that
+informs rather than punishes.
+
+---
+
+© 2026 API Commons (Kin Lane). Licensed under Apache-2.0.

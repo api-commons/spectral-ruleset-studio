@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Spectral Ruleset Studio — turn your style guide into an owned, grounded ruleset</title>
+    <meta name="description" content="A browser tool that turns prose style-guide statements into an OWNED, GROUNDED, well-named Spectral ruleset. Pick a target and one of the 9 core functions, write the message and severity, and ground every rule with an owner, rationale and docs link. An API Commons tool — free and open." />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <!-- Google tag (gtag.js) — API Commons -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-WNSPT4B4S8"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-WNSPT4B4S8');
+    </script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <img src="/favicon.svg" alt="" width="24" height="24" />
+        <strong>Spectral Ruleset Studio</strong>
+        <span class="tag">studio.apicommons.org</span>
+      </div>
+      <nav>
+        <a href="#studio">Studio</a>
+        <a href="#library">Starter library</a>
+        <a href="#usage">Usage</a>
+        <a href="https://apicommons.org/tools/" target="_blank" rel="noopener">API Commons</a>
+        <a class="btn-yellow" href="https://github.com/api-commons/spectral-ruleset-studio" target="_blank" rel="noopener">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8Z"/></svg>
+          GitHub
+        </a>
+        <button id="engage-ae" class="btn-yellow" type="button" title="Work with API Evangelist on governance">Get Help</button>
+      </nav>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="hero-inner">
+          <h1>Turn your style guide into a ruleset you actually own.</h1>
+          <p class="lede">
+            Sixty-three percent of teams run Spectral on its defaults — a config file nobody wrote,
+            grounded in nothing. <strong>Spectral Ruleset Studio</strong> makes the other path cheap:
+            paste a prose statement, and the tool walks you to a <strong>target</strong>, one of the
+            <strong>9 core functions</strong>, a message and severity — and forces the
+            <strong>grounding</strong> (a named id, an owner, a rationale, a docs link) that turns a
+            bare verdict into guidance. Distilling the prose is the point: it exposes exactly where
+            the words were too vague to enforce.
+          </p>
+          <div class="hero-cta">
+            <a class="btn-yellow big" href="#studio">Open the studio ↓</a>
+            <a class="btn-outline big" href="#library">Browse starter rules</a>
+          </div>
+          <pre class="hero-cmd"><code>npx @api-common/spectral-ruleset-studio operations info -o .spectral.yaml</code></pre>
+        </div>
+      </section>
+
+      <section class="features">
+        <div class="feature">
+          <h3>Distill, don't copy</h3>
+          <p>Paste style-guide prose; the tool flags vague words and makes you pin down exactly what a rule checks.</p>
+        </div>
+        <div class="feature">
+          <h3>9 functions, no JS</h3>
+          <p>Every rule uses one of Spectral's built-in functions — defined, truthy, pattern, casing, length, enumeration, schema and more — with guided args.</p>
+        </div>
+        <div class="feature">
+          <h3>Grounding required</h3>
+          <p>No rule ships without a convention id, an owner, a rationale and a docs link — so a red build teaches instead of just stopping.</p>
+        </div>
+        <div class="feature">
+          <h3>Valid YAML out</h3>
+          <p>Live, categorized <code>.spectral.yaml</code> that parses as you type — copy it, download it, or scaffold it from the CLI.</p>
+        </div>
+      </section>
+
+      <section id="studio" class="studio">
+        <div class="studio-head">
+          <h2>The studio</h2>
+          <p>Add rules three ways — paste prose to distill, drop in a grounded starter, or build one from scratch — then tune every field. The ruleset on the right updates as you go.</p>
+        </div>
+
+        <div class="studio-toolbar">
+          <div class="prose-add">
+            <textarea id="prose-input" rows="2" spellcheck="false" placeholder="Paste style-guide statements, one per line — e.g.&#10;Every operation must have a unique operationId.&#10;Schema property names must be camelCase."></textarea>
+            <button id="prose-btn" class="btn-yellow" type="button">Distill to rules →</button>
+          </div>
+          <div class="toolbar-actions">
+            <label class="sel-label">Add a starter rule
+              <select id="template-pick" aria-label="Add a starter rule"></select>
+            </label>
+            <button id="add-blank" class="btn-outline" type="button">+ Blank rule</button>
+            <button id="load-sample" class="btn-outline" type="button">Load sample set</button>
+            <button id="clear-all" class="btn-ghost" type="button">Clear</button>
+          </div>
+        </div>
+
+        <div class="studio-grid">
+          <div class="rules-col">
+            <div id="rules" class="rules"></div>
+            <p id="rules-empty" class="rules-empty muted">No rules yet. Paste prose above, add a starter rule, or start a blank one.</p>
+          </div>
+
+          <aside class="output-col">
+            <div class="output-bar">
+              <span class="preview-label">.spectral.yaml</span>
+              <span id="yaml-valid" class="valid-badge" title="Does the emitted YAML parse?"></span>
+              <span class="spacer"></span>
+              <label class="ext-toggle" title="Mirror grounding as machine-readable x-grounding extensions"><input id="ext-check" type="checkbox" checked /> x-grounding</label>
+              <button id="copy-btn" class="btn-outline sm" type="button">Copy</button>
+              <button id="download-btn" class="btn-yellow sm" type="button">Download</button>
+            </div>
+            <pre class="yaml-out"><code id="yaml-code"></code></pre>
+          </aside>
+        </div>
+      </section>
+
+      <section id="library" class="library">
+        <div class="studio-head">
+          <h2>Starter library</h2>
+          <p>Ready, already-grounded rules you can add and tune — <span id="lib-count"></span> of them. They are a starting point, not a standard: own them before you gate on them.</p>
+        </div>
+        <div id="lib-grid" class="lib-grid"></div>
+      </section>
+
+      <section id="usage" class="usage">
+        <h2>Philosophy &amp; usage</h2>
+
+        <p class="usage-lede">
+          A ruleset you did not write is a ruleset nobody at your organization had to think through —
+          which means nobody owns it, which means the identical YAML that is a governance artifact in
+          one repo is an empty gesture in another. This tool makes the human work — distilling prose,
+          naming the rule, grounding it, owning it — the cheap part.
+          Read the paper:
+          <a href="https://apievangelist.com" target="_blank" rel="noopener">The State of Spectral in API Pipelines</a>.
+        </p>
+
+        <h3>Scaffold from the CLI</h3>
+        <pre><code># Emit the whole grounded starter library to stdout
+npx @api-common/spectral-ruleset-studio
+
+# Only certain areas, written to a file
+npx @api-common/spectral-ruleset-studio operations info -o .spectral.yaml
+
+# A specific rule by id
+npx @api-common/spectral-ruleset-studio --id operations-operationId-defined
+
+# List every template id
+npx @api-common/spectral-ruleset-studio --list</code></pre>
+
+        <h3>Run your ruleset in CI (sparingly, and never silently)</h3>
+        <pre><code>- name: Govern the API
+  run: npx @stoplight/spectral-cli lint openapi.yaml --ruleset .spectral.yaml
+# then turn the JSON into a readable report:
+#   spectral lint -f json openapi.yaml | npx @api-common/spectral-reporter -o report.html</code></pre>
+
+        <h3>The 9 core functions</h3>
+        <ul class="flags">
+          <li><code>defined</code> · <code>truthy</code> · <code>falsy</code> · <code>undefined</code> — presence checks.</li>
+          <li><code>pattern</code> · <code>casing</code> · <code>length</code> — string shape.</li>
+          <li><code>enumeration</code> · <code>alphabetical</code> · <code>schema</code> — allowed values, ordering, structure.</li>
+        </ul>
+
+        <p class="usage-foot">
+          The emitter is a pure, shared module used verbatim by this page and the CLI —
+          so the YAML you copy here is byte-for-byte what the terminal writes.
+          Free and open under the <a href="https://github.com/api-commons/spectral-ruleset-studio" target="_blank" rel="noopener">Apache-2.0 license</a>.
+          When you want experts in the loop, <button id="engage-inline" class="linkish" type="button">work with API Evangelist</button>.
+        </p>
+      </section>
+    </main>
+
+    <footer class="site-foot">
+      <div class="foot-tools">
+        <span class="foot-title">API Commons tools</span>
+        <a href="https://validator.apicommons.org" target="_blank" rel="noopener">API Validator</a>
+        <a href="https://reporter.apicommons.org" target="_blank" rel="noopener">Spectral Reporter</a>
+        <a href="https://discover.apicommons.org" target="_blank" rel="noopener">API Discovery</a>
+        <a href="https://documentation.apicommons.org" target="_blank" rel="noopener">API Documentation</a>
+        <a href="https://reusability.apicommons.org" target="_blank" rel="noopener">API Reusability</a>
+        <a href="https://install.apicommons.org" target="_blank" rel="noopener">MCP Install</a>
+        <a href="https://studio.apicommons.org" class="current">Spectral Ruleset Studio</a>
+      </div>
+      <p class="foot-note">
+        A project of <a href="https://apievangelist.com" target="_blank" rel="noopener">API Evangelist</a>,
+        maintained openly under <a href="https://apicommons.org" target="_blank" rel="noopener">API Commons</a>.
+        Open source and free to fork; API Evangelist offers expert
+        <a href="https://apievangelist.com/services/" target="_blank" rel="noopener">governance services</a> when you want help.
+      </p>
+    </footer>
+
+    <script type="module" src="/src/site.ts"></script>
+  </body>
+</html>

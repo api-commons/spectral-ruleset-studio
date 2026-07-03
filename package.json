@@ -1,0 +1,65 @@
+{
+  "name": "@api-common/spectral-ruleset-studio",
+  "version": "0.1.0",
+  "description": "Turn a prose style guide into an OWNED, GROUNDED, well-named Spectral ruleset in your browser — pick a target, one of the 9 core functions, write the message and severity, and ground every rule with an owner, rationale and docs link. An API Commons tool.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "author": "API Evangelist (https://apievangelist.com)",
+  "homepage": "https://studio.apicommons.org",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/api-commons/spectral-ruleset-studio.git"
+  },
+  "bugs": {
+    "url": "https://github.com/api-commons/spectral-ruleset-studio/issues"
+  },
+  "keywords": [
+    "spectral",
+    "openapi",
+    "asyncapi",
+    "api-governance",
+    "ruleset",
+    "linting",
+    "style-guide",
+    "grounding",
+    "api-commons"
+  ],
+  "bin": {
+    "spectral-ruleset-studio": "bin/cli.js"
+  },
+  "exports": {
+    ".": "./src/emit-ruleset.js",
+    "./catalog": "./src/catalog.js",
+    "./templates": "./src/templates.js"
+  },
+  "files": [
+    "bin/",
+    "src/emit-ruleset.js",
+    "src/catalog.js",
+    "src/templates.js",
+    "fixtures/sample-statements.json",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "test": "node --test",
+    "dev": "vite",
+    "build:site": "vite build",
+    "build": "vite build",
+    "preview": "vite preview",
+    "cli": "node bin/cli.js"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.2",
+    "vite": "^5.4.11"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

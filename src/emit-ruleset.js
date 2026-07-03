@@ -16,15 +16,18 @@
 //      that wants it structured.
 
 import yaml from 'js-yaml';
-import { getFunction, isValidRuleId, AREAS, SEVERITY_KEYS } from './catalog.js';
+import { getFunction, isValidRuleId, AREAS, SEVERITY_KEYS, getTargetMode } from './catalog.js';
 
 /**
  * @typedef {Object} RuleDraft
  * @property {string} id        rule id, convention `<area>-<subject>-<check>`
  * @property {string} area      one of catalog AREAS keys
  * @property {string} statement the source style-guide prose
- * @property {string} given     JSONPath target
+ * @property {string} given     JSONPath target (the format-common / 3.x form)
  * @property {string} [field]   optional `then.field`
+ * @property {{given:string, field?:string}} [oas3] the OpenAPI 3.x form of a divergent target
+ * @property {{given:string, field?:string}} [oas2] the Swagger 2.0 form of a divergent target
+ * @property {string[]} [formats] restrict to Spectral formats (e.g. ['oas3'] for a 3.x-only concept)
  * @property {string} fn        one of the 9 core function names
  * @property {Object} [options] function options (then.functionOptions)
  * @property {string} message   the message shown when the rule fires
@@ -41,6 +44,84 @@ import { getFunction, isValidRuleId, AREAS, SEVERITY_KEYS } from './catalog.js';
  */
 
 const AREA_LABEL = new Map(AREAS.map((a) => [a.key, a.label]));
+
+/**
+ * @typedef {Object} RuleVariant
+ * @property {string|string[]} given the JSONPath (an array = multipath)
+ * @property {string} [field]        then.field for this variant
+ * @property {string[]} [formats]    per-rule Spectral formats tag
+ * @property {string} [idSuffix]     appended to the draft id for a twin (e.g. '-oas2')
+ */
+
+/** Normalize a target-mode key to one of 'both' | 'oas3' | 'oas2'. */
+export function normalizeTargetMode(mode) {
+  return getTargetMode(mode).key;
+}
+
+/** The top-level `formats` array for a target mode. */
+export function formatsForMode(mode) {
+  return getTargetMode(mode).formats.slice();
+}
+
+/**
+ * Resolve one draft into the concrete rule VARIANTS to emit for a target mode.
+ *
+ * The decision (see catalog.js header note):
+ *   - Divergent draft (both `oas2` and `oas3` forms present):
+ *       • mode oas3 / oas2 → emit only that form (one rule, no per-rule formats).
+ *       • mode both, same `field` on both forms → ONE multipath rule
+ *         (`given: [oas3, oas2]`, no formats) — the check is identical.
+ *       • mode both, different `field` → TWO twin rules, `-oas3`/`-oas2`,
+ *         each tagged `formats: [oas3]` / `[oas2]` — the check differs.
+ *   - Single-spec draft (`formats: ['oas3']` or `['oas2']`): emitted with that
+ *     formats tag in `both` mode, kept in its own mode, dropped in the other.
+ *   - Format-agnostic draft: one rule, no formats — fires on 2.0 and 3.x alike.
+ *
+ * @param {RuleDraft} d
+ * @param {string} [mode] 'both' | 'oas3' | 'oas2'
+ * @returns {RuleVariant[]}
+ */
+export function resolveVariants(d, mode = 'both') {
+  const m = normalizeTargetMode(mode);
+  const o3 = d.oas3 && d.oas3.given ? { given: d.oas3.given, field: d.oas3.field != null ? d.oas3.field : (d.field || '') } : null;
+  const o2 = d.oas2 && d.oas2.given ? { given: d.oas2.given, field: d.oas2.field != null ? d.oas2.field : (d.field || '') } : null;
+  const explicit = Array.isArray(d.formats) && d.formats.length ? d.formats.slice() : null;
+
+  // Divergent — both spec forms supplied.
+  if (o2 && o3) {
+    if (m === 'oas3') return [{ given: o3.given, field: o3.field }];
+    if (m === 'oas2') return [{ given: o2.given, field: o2.field }];
+    const sameField = String(o3.field || '') === String(o2.field || '');
+    if (sameField) {
+      // Identical check on two paths → one multipath rule (collapse if same path).
+      const given = o3.given === o2.given ? o3.given : [o3.given, o2.given];
+      return [{ given, field: o3.field }];
+    }
+    // The check itself differs → format-tagged twins.
+    return [
+      { given: o3.given, field: o3.field, formats: ['oas3'], idSuffix: '-oas3' },
+      { given: o2.given, field: o2.field, formats: ['oas2'], idSuffix: '-oas2' },
+    ];
+  }
+
+  // Only one spec form supplied → treat as a single-spec concept.
+  if (o3 && !o2) {
+    if (m === 'oas2') return [];
+    return [{ given: o3.given, field: o3.field, formats: m === 'both' ? ['oas3'] : undefined }];
+  }
+  if (o2 && !o3) {
+    if (m === 'oas3') return [];
+    return [{ given: o2.given, field: o2.field, formats: m === 'both' ? ['oas2'] : undefined }];
+  }
+
+  // Format-agnostic, possibly narrowed by an explicit `formats` restriction.
+  if (explicit) {
+    const supports = (fmt) => explicit.some((f) => f === fmt || f.startsWith(fmt));
+    if (m !== 'both' && !supports(m)) return []; // this mode is excluded
+    return [{ given: d.given, field: d.field, formats: m === 'both' ? explicit : undefined }];
+  }
+  return [{ given: d.given, field: d.field }];
+}
 
 // Words that usually mean the prose has not yet been distilled into something
 // executable — the act of writing the rule should force these to be resolved.
@@ -175,11 +256,13 @@ function oneLine(v) {
   return String(v == null ? '' : v).replace(/\s+/g, ' ').trim();
 }
 
-// Build the single rule object (no id key) Spectral consumes.
-function buildRule(d, includeExtensions) {
+// Build the single rule object (no id key) Spectral consumes. `variant` carries
+// the resolved given/field/formats for this emission (see resolveVariants).
+function buildRule(d, includeExtensions, variant) {
+  const v = variant || { given: d.given, field: d.field };
   const fn = getFunction(d.fn);
   const then = { function: fn ? fn.name : d.fn };
-  if (d.field) then.field = d.field;
+  if (v.field) then.field = v.field;
   const fnOpts = fn ? buildFunctionOptions(fn, d.options) : {};
   if (Object.keys(fnOpts).length) then.functionOptions = fnOpts;
   // `field` reads best before `function`; rebuild in a friendly key order.
@@ -192,9 +275,10 @@ function buildRule(d, includeExtensions) {
     description: groundingDescription(d),
     message: d.message,
     severity: d.severity,
-    given: d.given,
-    then: orderedThen,
   };
+  if (v.formats && v.formats.length) rule.formats = v.formats;
+  rule.given = v.given;
+  rule.then = orderedThen;
   if (d.docs) rule.documentationUrl = d.docs;
   if (includeExtensions) {
     rule['x-grounding'] = {
@@ -220,21 +304,25 @@ function buildRule(d, includeExtensions) {
  * @param {RuleDraft[]} drafts
  * @param {Object} [opts]
  * @param {string} [opts.documentationUrl] top-level docs link
- * @param {string[]} [opts.formats] Spectral formats (default ['oas3'])
+ * @param {string} [opts.target] output target — 'both' (default) | 'oas3' | 'oas2'
+ * @param {string[]} [opts.formats] override top-level Spectral formats (defaults from target)
  * @param {boolean} [opts.includeExtensions] mirror grounding as x-grounding (default true)
  * @returns {Object}
  */
 export function buildRuleset(drafts, opts = {}) {
   const includeExtensions = opts.includeExtensions !== false;
+  const mode = normalizeTargetMode(opts.target);
   const list = Array.isArray(drafts) ? drafts : [];
   const ruleset = {};
   const topDocs = opts.documentationUrl || firstDocs(list);
   if (topDocs) ruleset.documentationUrl = topDocs;
-  ruleset.formats = opts.formats && opts.formats.length ? opts.formats : ['oas3'];
+  ruleset.formats = opts.formats && opts.formats.length ? opts.formats : formatsForMode(mode);
   ruleset.rules = {};
   for (const d of list) {
     if (!d || !d.id) continue;
-    ruleset.rules[d.id] = buildRule(d, includeExtensions);
+    for (const v of resolveVariants(d, mode)) {
+      ruleset.rules[d.id + (v.idSuffix || '')] = buildRule(d, includeExtensions, v);
+    }
   }
   return ruleset;
 }
@@ -280,19 +368,27 @@ function indent(text, spaces) {
  * @param {string} [opts.generatedAt] ISO timestamp for the header
  * @param {boolean} [opts.includeExtensions] mirror grounding as x-grounding (default true)
  * @param {string} [opts.documentationUrl] top-level docs link
- * @param {string[]} [opts.formats] Spectral formats (default ['oas3'])
+ * @param {string} [opts.target] output target — 'both' (default) | 'oas3' | 'oas2'
+ * @param {string[]} [opts.formats] override top-level Spectral formats (defaults from target)
  * @returns {string}
  */
 export function emitYaml(drafts, opts = {}) {
   const includeExtensions = opts.includeExtensions !== false;
+  const mode = normalizeTargetMode(opts.target);
   const list = (Array.isArray(drafts) ? drafts : []).filter((d) => d && d.id);
   const title = opts.title || 'API Governance Ruleset';
   const when = opts.generatedAt || new Date().toISOString();
 
+  // Actual emitted rule count (a divergent draft may fan out to two twins, or
+  // drop to zero when the target mode excludes it).
+  const variantsByDraft = list.map((d) => resolveVariants(d, mode));
+  const ruleCount = variantsByDraft.reduce((n, vs) => n + vs.length, 0);
+  const modeShort = getTargetMode(mode).short;
+
   const header = [
     `# ${title}`,
-    `# An OWNED, grounded Spectral ruleset — ${list.length} rule${list.length === 1 ? '' : 's'}.`,
-    '# Built with Spectral Ruleset Studio (studio.apicommons.org).',
+    `# An OWNED, grounded Spectral ruleset — ${ruleCount} rule${ruleCount === 1 ? '' : 's'}.`,
+    `# Target: ${modeShort}. Built with Spectral Ruleset Studio (studio.apicommons.org).`,
     '#',
     '# Every rule below was distilled from a style-guide statement on purpose, and',
     '# carries its grounding (owner, rationale, source, framing) in its description',
@@ -307,24 +403,29 @@ export function emitYaml(drafts, opts = {}) {
   const top = {};
   const topDocs = opts.documentationUrl || firstDocs(list);
   if (topDocs) top.documentationUrl = topDocs;
-  top.formats = opts.formats && opts.formats.length ? opts.formats : ['oas3'];
+  top.formats = opts.formats && opts.formats.length ? opts.formats : formatsForMode(mode);
   out.push(yaml.dump(top, DUMP_OPTS).trimEnd());
 
   out.push('rules:');
   const grouped = groupByArea(list);
-  if (!grouped.length) {
+  if (!grouped.length || !ruleCount) {
     out.push('  {}');
   }
   for (const [areaKey, items] of grouped) {
+    // Skip an area whose every rule was dropped by the target mode.
+    const emit = items.filter((d) => resolveVariants(d, mode).length);
+    if (!emit.length) continue;
     const label = AREA_LABEL.get(areaKey) || 'Other';
     out.push(`  # ─────────────────────────────────────────────────────────`);
     out.push(`  # ${label}`);
     out.push(`  # ─────────────────────────────────────────────────────────`);
-    for (const d of items) {
-      const rule = buildRule(d, includeExtensions);
-      const block = yaml.dump({ [d.id]: rule }, DUMP_OPTS).trimEnd();
-      out.push(indent(block, 2));
-      out.push('');
+    for (const d of emit) {
+      for (const v of resolveVariants(d, mode)) {
+        const rule = buildRule(d, includeExtensions, v);
+        const block = yaml.dump({ [d.id + (v.idSuffix || '')]: rule }, DUMP_OPTS).trimEnd();
+        out.push(indent(block, 2));
+        out.push('');
+      }
     }
   }
 

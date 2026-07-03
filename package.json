@@ -1,6 +1,6 @@
 {
   "name": "@api-common/spectral-ruleset-studio",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Turn a prose style guide into an OWNED, GROUNDED, well-named Spectral ruleset in your browser — pick a target, one of the 9 core functions, write the message and severity, and ground every rule with an owner, rationale and docs link. An API Commons tool.",
   "type": "module",
   "license": "Apache-2.0",

@@ -9,9 +9,18 @@
 // Shape of a rule draft (see emit-ruleset.js for how it becomes YAML):
 //   {
 //     id, area, statement, given, field,
+//     oas3?, oas2?, formats?,           // format awareness — see below
 //     fn, options, message, severity, framing ('positive'|'negative'),
 //     description, why, docs, owner
 //   }
+//
+// FORMAT AWARENESS. Every starter here works on BOTH Swagger 2.0 and OpenAPI
+// 3.x. Where a target diverges between the specs a template carries an `oas3`
+// and an `oas2` form (`{ given, field }`); the emitter collapses them to a
+// multipath `given` when the check is identical, or to `-oas3`/`-oas2` twins
+// when it differs. Where a concept is 3.x-only (`requestBody`) or 2.0-only
+// (`host`/formData) the template carries `formats: ['oas3']` / `['oas2']`.
+// Templates with neither are format-agnostic and fire on either spec.
 //
 // Pure data, zero dependencies.
 
@@ -150,15 +159,33 @@ export const TEMPLATES = [
   {
     id: 'operations-get-requestBody-falsy',
     area: 'operations',
-    statement: 'GET operations must not define a request body.',
+    statement: 'GET operations must not define a request body (OpenAPI 3.x).',
     given: '$.paths[*].get',
     field: 'requestBody',
+    formats: ['oas3'],
     fn: 'falsy',
     options: {},
     message: 'GET operations must not declare a requestBody — GET is safe and idempotent by contract.',
     severity: 'error',
     framing: 'negative',
-    description: 'A GET with a body violates HTTP semantics; many proxies, caches and agents will strip or ignore the body, producing silent bugs.',
+    description: 'A GET with a body violates HTTP semantics; many proxies, caches and agents will strip or ignore the body, producing silent bugs. The requestBody object is 3.x-only — the Swagger 2.0 twin below checks for a body/formData parameter.',
+    why: 'Bodies on GET are unreliable across the HTTP ecosystem and break the safe/idempotent guarantees consumers depend on.',
+    docs: 'https://apievangelist.com/services/governance/rules/',
+    owner: 'API Governance Team',
+  },
+  {
+    id: 'operations-get-body-parameter-falsy-oas2',
+    area: 'operations',
+    statement: 'GET operations must not define a body or formData parameter (Swagger 2.0).',
+    given: "$.paths[*].get.parameters[?(@.in=='body' || @.in=='formData')]",
+    field: '',
+    formats: ['oas2'],
+    fn: 'undefined',
+    options: {},
+    message: 'GET operations must not declare a body or formData parameter — GET is safe and idempotent by contract.',
+    severity: 'error',
+    framing: 'negative',
+    description: 'Swagger 2.0 has no requestBody object; a request body is a parameter with in: body (or in: formData). This is the 2.0 parity twin of operations-get-requestBody-falsy.',
     why: 'Bodies on GET are unreliable across the HTTP ecosystem and break the safe/idempotent guarantees consumers depend on.',
     docs: 'https://apievangelist.com/services/governance/rules/',
     owner: 'API Governance Team',
@@ -217,6 +244,8 @@ export const TEMPLATES = [
     statement: 'Error responses (4xx/5xx) must carry a documented body schema.',
     given: "$.paths[*][*].responses[?(@property.match(/^(4|5)/))].content",
     field: '',
+    oas3: { given: "$.paths[*][*].responses[?(@property.match(/^(4|5)/))].content", field: '' },
+    oas2: { given: "$.paths[*][*].responses[?(@property.match(/^(4|5)/))].schema", field: '' },
     fn: 'truthy',
     options: {},
     message: 'Every 4xx/5xx response must document a body (a consistent error schema), not just a status code.',
@@ -249,6 +278,8 @@ export const TEMPLATES = [
     statement: 'Every schema property must be described.',
     given: '$.components.schemas[*].properties[*]',
     field: 'description',
+    oas3: { given: '$.components.schemas[*].properties[*]', field: 'description' },
+    oas2: { given: '$.definitions[*].properties[*]', field: 'description' },
     fn: 'truthy',
     options: {},
     message: 'Schema property must have a non-empty description so its meaning is unambiguous.',
@@ -265,6 +296,8 @@ export const TEMPLATES = [
     statement: 'Schema property names must be camelCase.',
     given: '$.components.schemas[*].properties',
     field: '',
+    oas3: { given: '$.components.schemas[*].properties', field: '' },
+    oas2: { given: '$.definitions[*].properties', field: '' },
     fn: 'casing',
     options: { type: 'camel' },
     message: 'Schema property names must be camelCase across the estate.',
@@ -278,9 +311,11 @@ export const TEMPLATES = [
   {
     id: 'schemas-example-defined',
     area: 'schemas',
-    statement: 'Component schemas should carry an example.',
+    statement: 'Reusable schemas should carry an example.',
     given: '$.components.schemas[*]',
     field: 'example',
+    oas3: { given: '$.components.schemas[*]', field: 'example' },
+    oas2: { given: '$.definitions[*]', field: 'example' },
     fn: 'truthy',
     options: {},
     message: 'Schema should include an example so docs and mock servers can show real-looking data.',
@@ -338,6 +373,44 @@ export const TEMPLATES = [
     why: 'Undescribed tags produce documentation section headers with no explanation of what the group of operations is for.',
     docs: 'https://apievangelist.com/services/discovery/interfaces/',
     owner: 'API Governance Team',
+  },
+  {
+    id: 'servers-base-url-defined',
+    area: 'servers',
+    statement: 'The API must declare a base URL (a server URL in 3.x, a host in 2.0).',
+    given: '$.servers[*]',
+    field: 'url',
+    // Different fields (url vs host) → the emitter writes -oas3 / -oas2 twins.
+    oas3: { given: '$.servers[*]', field: 'url' },
+    oas2: { given: '$', field: 'host' },
+    fn: 'truthy',
+    options: {},
+    message: 'The API must declare where it lives — a servers[].url (OpenAPI 3.x) or a host (Swagger 2.0).',
+    severity: 'warn',
+    framing: 'positive',
+    description: 'A consumer (or agent) cannot call an API it cannot locate. 3.x carries this as servers[].url; 2.0 carries it as a top-level host — so this ships as two format-tagged twins.',
+    why: 'An interface with no declared base URL forces every consumer to hard-code an environment out of band, which is exactly what a definition is meant to prevent.',
+    docs: 'https://apievangelist.com/services/discovery/interfaces/',
+    owner: 'API Governance Team',
+  },
+  {
+    id: 'security-scheme-description-defined',
+    area: 'security',
+    statement: 'Every declared security scheme must be described.',
+    given: '$.components.securitySchemes[*]',
+    field: 'description',
+    // Same check on both stores → one multipath rule.
+    oas3: { given: '$.components.securitySchemes[*]', field: 'description' },
+    oas2: { given: '$.securityDefinitions[*]', field: 'description' },
+    fn: 'truthy',
+    options: {},
+    message: 'Security scheme must have a non-empty description so consumers know how to authenticate.',
+    severity: 'info',
+    framing: 'positive',
+    description: 'A described security scheme tells a human or agent exactly how to obtain and present credentials. 3.x stores schemes under components.securitySchemes; 2.0 under securityDefinitions — the same check applies to both via a multipath given.',
+    why: 'An undescribed auth scheme is a guessing game that stalls integration at the first call.',
+    docs: 'https://apievangelist.com/services/governance/',
+    owner: 'API Security Team',
   },
 ];
 

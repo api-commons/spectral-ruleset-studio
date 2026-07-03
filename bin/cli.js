@@ -16,6 +16,7 @@
 //   -o, --output <file>   write YAML to a file (default: stdout)
 //       --id <ruleId>     include a specific template id (repeatable)
 //       --title <text>    ruleset title used in the header
+//       --target <mode>   both (default) | oas3 | oas2 — which OpenAPI dialect(s) to govern
 //       --no-ext          omit the x-grounding extensions (leaner, still grounded)
 //       --list            list available template ids and exit
 //   -h, --help            show help
@@ -26,18 +27,24 @@ import { fileURLToPath } from 'node:url';
 import { dirname, resolve, join } from 'node:path';
 import { emitYaml } from '../src/emit-ruleset.js';
 import { TEMPLATES } from '../src/templates.js';
-import { AREA_KEYS } from '../src/catalog.js';
+import { AREA_KEYS, TARGET_MODE_KEYS } from '../src/catalog.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 function parseArgs(argv) {
-  const opts = { output: null, ids: [], areas: [], title: 'API Governance Ruleset', ext: true, list: false, help: false, version: false };
+  const opts = { output: null, ids: [], areas: [], title: 'API Governance Ruleset', ext: true, target: 'both', list: false, help: false, version: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     switch (a) {
       case '-o': case '--output': opts.output = argv[++i]; break;
       case '--id': opts.ids.push(argv[++i]); break;
       case '--title': opts.title = argv[++i]; break;
+      case '--target': {
+        const t = argv[++i];
+        if (!TARGET_MODE_KEYS.includes(t)) { console.error(`Unknown target "${t}". Valid targets: ${TARGET_MODE_KEYS.join(', ')}`); process.exit(2); }
+        opts.target = t;
+        break;
+      }
       case '--no-ext': opts.ext = false; break;
       case '--list': opts.list = true; break;
       case '-h': case '--help': opts.help = true; break;
@@ -67,12 +74,14 @@ Flags:
   -o, --output <file>   write YAML to a file (default: stdout)
       --id <ruleId>     include a specific template id (repeatable)
       --title <text>    ruleset title used in the header comment
+      --target <mode>   both (default) | oas3 | oas2 — Swagger 2.0 / OpenAPI 3.x parity
       --no-ext          omit the x-grounding extensions (leaner, still grounded)
       --list            list available template ids and exit
   -h, --help            show this help
       --version         print version
 
 Areas: ${AREA_KEYS.join(', ')}
+Targets: ${TARGET_MODE_KEYS.join(', ')}
 
 The starter rules are a starting point, not a standard. Own them: edit the
 messages, tune the severities, and name a real owner before you gate on them.`);
@@ -116,6 +125,7 @@ async function main() {
   const yamlStr = emitYaml(picked, {
     title: opts.title,
     includeExtensions: opts.ext,
+    target: opts.target,
     generatedAt: new Date().toISOString(),
   });
 

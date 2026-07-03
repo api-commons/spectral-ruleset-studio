@@ -36,6 +36,10 @@ Spectral Ruleset Studio forces that human work, and makes it fast:
   severity — is a deliberate choice you make, because credibility comes from a small blocking set.
 - **Positive or negative framing.** Write the rule that flags what is wrong, or its twin that
   recognizes what is right, so you can report progress (*"82% already comply"*) and not only deficits.
+- **Swagger 2.0 and OpenAPI 3.x, with parity.** Every rule targets both specs. Where the two dialects
+  diverge (`definitions` vs `components.schemas`, `securityDefinitions` vs `components.securitySchemes`,
+  `host`/`schemes` vs `servers`), the tool emits the right JSONPath for each — as a single multipath
+  `given` when the check is identical, or as format-tagged twin rules when it differs.
 
 ## What it does
 
@@ -53,7 +57,8 @@ Spectral Ruleset Studio forces that human work, and makes it fast:
    operationId present, descriptions non-empty, consistent error schema, declared security, kebab-case
    paths, camelCase properties, tags present, and more.
 3. **Live output.** A valid, categorized `.spectral.yaml` that updates as you type, with a "valid
-   YAML" indicator, a copy button, and a download button. Every rule carries its grounding.
+   YAML" indicator, a **Target** toggle (OpenAPI 3.x / Swagger 2.0 / Both), a copy button, and a
+   download button. Every rule carries its grounding.
 4. **A tiny CLI** (`@api-common/spectral-ruleset-studio`) that scaffolds a grounded starter ruleset
    from the same templates, for wiring into a repo or CI from the terminal.
 
@@ -70,6 +75,29 @@ machine-readable:
 
 Each rule also sets `documentationUrl` to its docs link. The emitted rulesets lint cleanly under
 Spectral 6.
+
+## Swagger 2.0 / OpenAPI 3.x parity
+
+Spectral auto-detects a document's format (`swagger: "2.0"` → `oas2`; `openapi: 3.x` → `oas3`) and
+only runs a rule on a document whose format is in the rule's `formats` (or on every document when the
+rule declares none). Spectral Ruleset Studio is **format-aware**, so the rulesets you build apply to
+both specs. A **Target** toggle in the studio output bar (and `--target` on the CLI) chooses which
+dialect(s) to govern:
+
+- **Both** (default) — one ruleset that governs Swagger 2.0 **and** OpenAPI 3.x. Divergent targets are
+  emitted in one of two ways:
+  - a **multipath `given`** — `given: [$.components.schemas.*, $.definitions.*]`, no `formats` tag —
+    when the same check is valid on both paths (e.g. "every schema property must be described"). One
+    clean rule, no duplication;
+  - **format-tagged twins** — `<id>-oas3` (`formats: [oas3]`) and `<id>-oas2` (`formats: [oas2]`) —
+    when the check itself differs (e.g. a base URL is `servers[].url` in 3.x but `host` in 2.0).
+  Concepts that exist in only one spec (3.x `requestBody`, 2.0 `host`/`formData`) are tagged
+  `formats: [oas3]` / `[oas2]` so they never mis-fire on the other.
+- **OpenAPI 3.x** / **Swagger 2.0** — emit only that dialect's form of each rule, with a matching
+  top-level `formats`. One-spec-only rules are dropped when they don't apply.
+
+Under the hood, each divergent target and template records **both** its `oas3` and `oas2` JSONPath
+form; the emitter decides multipath-vs-twin from whether the two forms share the same `then.field`.
 
 ## Use it
 
@@ -92,6 +120,9 @@ npx @api-common/spectral-ruleset-studio --id operations-operationId-defined
 
 # List every template id
 npx @api-common/spectral-ruleset-studio --list
+
+# A Swagger 2.0-only ruleset (or --target oas3 for 3.x only; default is both)
+npx @api-common/spectral-ruleset-studio --target oas2 -o .spectral.yaml
 
 # Leaner output (grounding stays in the description, no x- extensions)
 npx @api-common/spectral-ruleset-studio --no-ext -o .spectral.yaml

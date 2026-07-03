@@ -121,6 +121,14 @@ em{color:var(--muted);font-style:normal}
 .valid-badge.ok{background:rgba(45,164,78,.16);color:#7ee787}
 .valid-badge.bad{background:rgba(241,76,76,.16);color:#ff9c9c}
 .ext-toggle{display:inline-flex;align-items:center;gap:.35rem;font-size:.78rem;color:var(--muted);cursor:pointer}
+.target-toggle{display:inline-flex;align-items:center;gap:.35rem;font-size:.78rem;color:var(--muted);cursor:pointer}
+.target-toggle select{background:#141414;border:1px solid var(--line);color:var(--fg);border-radius:6px;padding:3px 7px;font-size:.78rem}
+/* ---- format posture badges ---- */
+.rc-fmt{text-transform:none;letter-spacing:0;font-weight:700;font-size:.62rem;padding:1px 6px;border-radius:20px;margin-left:.4rem}
+.lib-fmt{font-weight:700}
+.fmt-both{background:rgba(227,179,65,.16);color:#e3b341;border:1px solid rgba(227,179,65,.4)}
+.fmt-oas3{background:rgba(55,148,255,.16);color:#7cc0ff;border:1px solid rgba(55,148,255,.4)}
+.fmt-oas2{background:rgba(154,160,166,.16);color:#c7ccd1;border:1px solid rgba(154,160,166,.4)}
 .yaml-out{background:#141414;border:1px solid var(--line);border-radius:8px;padding:.9rem 1rem;overflow:auto;max-height:78vh;margin:0}
 .yaml-out code{color:#e6e6e6;font-size:.8rem;line-height:1.55;white-space:pre;display:block}
 

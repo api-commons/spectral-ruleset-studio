@@ -6,7 +6,7 @@
 // terminal writes. Everything is client-side; nothing leaves the browser.
 
 import { emitYaml, parseCheck, validateDraft, vaguenessHints } from './emit-ruleset.js';
-import { FUNCTIONS, getFunction, AREAS, SEVERITIES, targetsForArea } from './catalog.js';
+import { FUNCTIONS, getFunction, AREAS, SEVERITIES, targetsForArea, TARGET_MODES, formatPosture } from './catalog.js';
 import { TEMPLATES } from './templates.js';
 import sampleStatements from '../fixtures/sample-statements.json';
 import { initEngage } from './engage';
@@ -20,6 +20,9 @@ interface RuleDraft {
   statement: string;
   given: string;
   field?: string;
+  oas3?: { given: string; field?: string };
+  oas2?: { given: string; field?: string };
+  formats?: string[];
   fn: string;
   options?: Record<string, unknown>;
   message: string;
@@ -55,6 +58,26 @@ const emptyEl = $('rules-empty');
 const yamlCode = $<HTMLElement>('yaml-code');
 const validBadge = $<HTMLElement>('yaml-valid');
 const extCheck = $<HTMLInputElement>('ext-check');
+const targetSelect = $<HTMLSelectElement>('target-mode');
+
+// The output target — which OpenAPI dialect(s) the ruleset governs.
+let targetMode = 'both';
+targetSelect.innerHTML = TARGET_MODES.map(
+  (m) => `<option value="${m.key}" ${m.key === targetMode ? 'selected' : ''}>${esc(m.label)}</option>`,
+).join('');
+targetSelect.addEventListener('change', () => {
+  targetMode = targetSelect.value || 'both';
+  refresh();
+});
+
+// A short "2.0 / 3.x / both" badge for a target or draft's format posture.
+function postureBadge(t: { oas2?: unknown; oas3?: unknown; formats?: string[] }): string {
+  const p = formatPosture(t);
+  if (p === 'both') return ' · 2.0+3.x';
+  if (p === 'oas2') return ' · 2.0';
+  if (p === 'oas3') return ' · 3.x';
+  return '';
+}
 
 // ---------------------------------------------------------------------------
 // Draft lifecycle
@@ -67,6 +90,9 @@ function makeDraft(partial: Partial<RuleDraft> | Record<string, unknown>): Draft
     statement: '',
     given: '',
     field: '',
+    oas3: undefined,
+    oas2: undefined,
+    formats: undefined,
     fn: 'truthy',
     options: {},
     message: '',
@@ -137,7 +163,7 @@ function renderCard(d: Draft): HTMLElement {
 
     <div class="rc-row">
       <label class="rc-field grow">
-        <span class="rc-lab">Target — common <code>given</code></span>
+        <span class="rc-lab">Target — common <code>given</code> <span class="rc-fmt" data-fmt title="Which OpenAPI dialect(s) this rule applies to"></span></span>
         <select class="rc-target" title="Common target">${targetOptions(d)}</select>
       </label>
       <label class="rc-field grow">
@@ -213,6 +239,10 @@ function renderCard(d: Draft): HTMLElement {
       if (key === 'area') syncTargetOptions(card, d);
       if (key === 'fn') { d.options = {}; renderOpts(card, d); }
       if (key === 'statement') updateHint(card, d);
+      // Hand-editing the base given/field keeps the 3.x form of a divergent
+      // rule in sync (the 2.0 twin is left as picked, on purpose).
+      if (key === 'given' && d.oas3) d.oas3.given = d.given;
+      if (key === 'field' && d.oas3) d.oas3.field = d.field;
       autoGrow(node);
       refresh(card, d);
     };
@@ -220,15 +250,20 @@ function renderCard(d: Draft): HTMLElement {
     node.addEventListener('change', handler);
   });
 
-  // ---- target picker fills given + field ----
+  // ---- target picker fills given + field (and the format-aware forms) ----
   const targetSel = card.querySelector<HTMLSelectElement>('.rc-target')!;
   targetSel.addEventListener('change', () => {
-    const t = targetsForArea(d.area)[Number(targetSel.value)];
+    const t = targetsForArea(d.area)[Number(targetSel.value)] as any;
     if (t) {
       d.given = t.given;
       d.field = t.field;
+      // Carry the Swagger 2.0 / OpenAPI 3.x forms so this rule works on both.
+      d.oas3 = t.oas3 ? { ...t.oas3 } : undefined;
+      d.oas2 = t.oas2 ? { ...t.oas2 } : undefined;
+      d.formats = Array.isArray(t.formats) ? t.formats.slice() : undefined;
       (card.querySelector('[data-k="given"]') as HTMLInputElement).value = t.given;
       (card.querySelector('[data-k="field"]') as HTMLInputElement).value = t.field;
+      updateFormatTag(card, d);
       refresh(card, d);
     }
   });
@@ -247,6 +282,7 @@ function renderCard(d: Draft): HTMLElement {
 
   renderOpts(card, d);
   updateHint(card, d);
+  updateFormatTag(card, d);
   queueMicrotask(() => card.querySelectorAll<HTMLTextAreaElement>('textarea').forEach(autoGrow));
   return card;
 }
@@ -254,7 +290,7 @@ function renderCard(d: Draft): HTMLElement {
 function targetOptions(d: Draft): string {
   const list = targetsForArea(d.area);
   return `<option value="">— pick a common target —</option>` +
-    list.map((t, i) => `<option value="${i}">${esc(t.label)}${t.field ? ` · .${esc(t.field)}` : ''}</option>`).join('');
+    list.map((t, i) => `<option value="${i}">${esc(t.label)}${t.field ? ` · .${esc(t.field)}` : ''}${postureBadge(t as any)}</option>`).join('');
 }
 function syncTargetOptions(card: HTMLElement, d: Draft) {
   const sel = card.querySelector<HTMLSelectElement>('.rc-target')!;
@@ -304,6 +340,22 @@ function renderOpts(card: HTMLElement, d: Draft) {
   });
 }
 
+// Show a small badge on the card noting the rule's OpenAPI format posture.
+function updateFormatTag(card: HTMLElement, d: Draft) {
+  const tag = card.querySelector<HTMLElement>('[data-fmt]');
+  if (!tag) return;
+  const p = formatPosture(d);
+  const map: Record<string, string> = {
+    both: 'Swagger 2.0 + OpenAPI 3.x',
+    oas2: 'Swagger 2.0 only',
+    oas3: 'OpenAPI 3.x only',
+    any: 'any spec',
+  };
+  tag.textContent = p === 'any' ? '' : (p === 'both' ? '2.0 + 3.x' : (p === 'oas2' ? '2.0' : '3.x'));
+  tag.className = `rc-fmt${p === 'any' ? '' : ` fmt-${p}`}`;
+  tag.title = map[p];
+}
+
 function updateHint(card: HTMLElement, d: Draft) {
   const hint = card.querySelector<HTMLElement>('[data-hint="statement"]')!;
   const vague = vaguenessHints(d.statement);
@@ -329,7 +381,7 @@ function autoGrow(node: HTMLElement) {
 let yamlText = '';
 function refresh(card?: HTMLElement, d?: Draft) {
   emptyEl.style.display = drafts.length ? 'none' : '';
-  yamlText = emitYaml(drafts as any, { includeExtensions: extCheck.checked, title: 'API Governance Ruleset' } as any);
+  yamlText = emitYaml(drafts as any, { includeExtensions: extCheck.checked, target: targetMode, title: 'API Governance Ruleset' } as any);
   yamlCode.textContent = yamlText;
   const check = parseCheck(yamlText);
   if (!drafts.length) {
@@ -455,13 +507,15 @@ $('lib-count').textContent = String(TEMPLATES.length);
 const libGrid = $('lib-grid');
 libGrid.innerHTML = TEMPLATES.map((t) => {
   const sev = SEVERITIES.find((s) => s.key === t.severity)!;
+  const posture = formatPosture(t as any);
+  const fmtLabel = posture === 'both' ? '2.0 + 3.x' : posture === 'oas2' ? '2.0' : posture === 'oas3' ? '3.x' : '';
   return `<div class="lib-card">
     <div class="lib-top">
       <code class="lib-id">${esc(t.id)}</code>
       <span class="lib-sev" style="--sev:${sev.color}">${sev.label}</span>
     </div>
     <p class="lib-stmt">${esc(t.statement)}</p>
-    <p class="lib-meta"><span class="lib-fn">${esc(t.fn)}</span> on <code>${esc(t.given)}</code>${t.field ? ` · <code>.${esc(t.field)}</code>` : ''}</p>
+    <p class="lib-meta"><span class="lib-fn">${esc(t.fn)}</span> on <code>${esc(t.given)}</code>${t.field ? ` · <code>.${esc(t.field)}</code>` : ''}${fmtLabel ? ` · <span class="lib-fmt fmt-${posture}">${fmtLabel}</span>` : ''}</p>
     <button class="btn-outline sm lib-add" data-id="${t.id}" type="button">+ Add to ruleset</button>
   </div>`;
 }).join('');

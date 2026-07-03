@@ -72,6 +72,10 @@
           <p>No rule ships without a convention id, an owner, a rationale and a docs link — so a red build teaches instead of just stopping.</p>
         </div>
         <div class="feature">
+          <h3>Swagger 2.0 + 3.x</h3>
+          <p>Every rule targets both specs. Divergent paths (<code>definitions</code> vs <code>components.schemas</code>) emit as a multipath <code>given</code> or format-tagged twins — pick 3.x, 2.0, or Both.</p>
+        </div>
+        <div class="feature">
           <h3>Valid YAML out</h3>
           <p>Live, categorized <code>.spectral.yaml</code> that parses as you type — copy it, download it, or scaffold it from the CLI.</p>
         </div>
@@ -109,6 +113,9 @@
               <span class="preview-label">.spectral.yaml</span>
               <span id="yaml-valid" class="valid-badge" title="Does the emitted YAML parse?"></span>
               <span class="spacer"></span>
+              <label class="target-toggle" title="Which OpenAPI dialect(s) the ruleset should govern. Both gives Swagger 2.0 and OpenAPI 3.x parity.">Target
+                <select id="target-mode" aria-label="Output target"></select>
+              </label>
               <label class="ext-toggle" title="Mirror grounding as machine-readable x-grounding extensions"><input id="ext-check" type="checkbox" checked /> x-grounding</label>
               <button id="copy-btn" class="btn-outline sm" type="button">Copy</button>
               <button id="download-btn" class="btn-yellow sm" type="button">Download</button>

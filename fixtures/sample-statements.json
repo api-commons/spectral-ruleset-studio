@@ -41,6 +41,8 @@
     "statement": "Schema property names must be camelCase.",
     "given": "$.components.schemas[*].properties",
     "field": "",
+    "oas3": { "given": "$.components.schemas[*].properties", "field": "" },
+    "oas2": { "given": "$.definitions[*].properties", "field": "" },
     "fn": "casing",
     "options": { "type": "camel" },
     "message": "Schema property names must be camelCase across the estate.",

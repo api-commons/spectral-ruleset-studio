@@ -62,8 +62,10 @@ export function getTargetMode(key) {
 
 // ---------------------------------------------------------------------------
 // The categories a grounded ruleset is organized into. The emitted YAML groups
-// rules under these as comment banners, and rule ids are conventionally
-// prefixed with the area: `<area>-<subject>-<check>` (e.g. operations-summary-defined).
+// rules under these as comment banners. The AREA is a grouping/authoring
+// dimension only; the rule id itself follows the canonical Spec/Version/
+// Property/Semantics/Severity convention defined at the bottom of this file
+// (e.g. oas-x-operation-summary-truthy-warn).
 // ---------------------------------------------------------------------------
 export const AREAS = [
   { key: 'info', label: 'API metadata (info)', blurb: 'Title, description, version, contact, license.' },
@@ -298,10 +300,37 @@ export function formatPosture(t) {
   return 'any';
 }
 
-// A convention regex for rule ids: <area>-<subject>-<check>. Segments are
-// kebab-joined and start lower-case; a segment may carry a camelCase subject
-// (e.g. operations-operationId-defined) as Spectral rule names commonly do.
-export const RULE_ID_RE = /^[a-z][a-zA-Z0-9]*(-[a-zA-Z0-9]+)+$/;
+// ---------------------------------------------------------------------------
+// THE CANONICAL API COMMONS RULE-ID CONVENTION — Spec / Version / Property /
+// Semantics / Severity. This is the convention from the "A Naming Convention for
+// Your Governance Rules" chapter of *Governance of APIs*, made THE standard the
+// studio emits and enforces. A rule id carries its own metadata, in order:
+//
+//     <spec>-<version>-<property…>-<semantics>-<severity>
+//       oas       3        info-description       truthy       warn
+//
+//   • spec      — the specification family: oas | aas | arazzo | jsonschema.
+//   • version   — the spec version as a bare token: 3 (OpenAPI 3.x), 2 (Swagger
+//                 2.0), or x (version-agnostic / applies across versions).
+//                 spec+version together are exactly Spectral's own format token
+//                 (oas3 / oas2).
+//   • property  — the root/nested property the rule targets, derived from the
+//                 JSONPath `given` (+ then.field): one or more kebab/camel
+//                 tokens — info-description, operation-summary, schema-property,
+//                 path, operation-operationId.
+//   • semantics — WHAT is checked, from the Spectral function: defined, truthy,
+//                 falsy, undefined, pattern, casing, length, enumeration,
+//                 alphabetical, schema.
+//   • severity  — error | warn | info | hint, carried IN the name and mirrored
+//                 by the rule's own `severity` property.
+//
+// Read a name built this way and you know, without opening the rule, that
+// `oas-3-info-title-length-warn` is an OpenAPI 3.x rule on info.title enforcing
+// a length at warning severity. The pipeline (`<org>-…`) and OWASP
+// (`owasp-api<N>-…`) rulesets are domain-scoped variants of this same shape.
+// ---------------------------------------------------------------------------
+export const RULE_ID_SPECS = ['oas', 'aas', 'arazzo', 'jsonschema'];
+export const RULE_ID_RE = /^(oas|aas|arazzo|jsonschema)-(x|\d+)(?:-[a-zA-Z0-9]+){2,}-(error|warn|info|hint)$/;
 export function isValidRuleId(id) {
   return typeof id === 'string' && RULE_ID_RE.test(id);
 }

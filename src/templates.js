@@ -6,6 +6,10 @@
 // theirs. The point of the paper — an OWNED, grounded ruleset — starts here, not
 // with a copied `.spectral.yaml` nobody wrote.
 //
+// Every id follows the canonical Spec/Version/Property/Semantics/Severity
+// convention (see catalog.js), e.g. oas-x-operation-summary-truthy-warn — the
+// same convention the studio suggests and validates for hand-authored rules.
+//
 // Shape of a rule draft (see emit-ruleset.js for how it becomes YAML):
 //   {
 //     id, area, statement, given, field,
@@ -29,7 +33,7 @@
 /** @type {RuleDraft[]} */
 export const TEMPLATES = [
   {
-    id: 'info-description-defined',
+    id: 'oas-x-info-description-truthy-warn',
     area: 'info',
     statement: 'Every API must have a meaningful, non-empty description.',
     given: '$.info',
@@ -45,7 +49,7 @@ export const TEMPLATES = [
     owner: 'API Governance Team',
   },
   {
-    id: 'info-contact-defined',
+    id: 'oas-x-info-contact-truthy-warn',
     area: 'info',
     statement: 'Every API must name a contact so consumers know who owns it.',
     given: '$.info',
@@ -61,7 +65,7 @@ export const TEMPLATES = [
     owner: 'API Governance Team',
   },
   {
-    id: 'info-license-defined',
+    id: 'oas-x-info-license-truthy-info',
     area: 'info',
     statement: 'Every API definition must declare a license.',
     given: '$.info',
@@ -77,7 +81,7 @@ export const TEMPLATES = [
     owner: 'API Governance Team',
   },
   {
-    id: 'operations-operationId-defined',
+    id: 'oas-x-operation-operationId-defined-error',
     area: 'operations',
     statement: 'Every operation must have a unique operationId.',
     given: '$.paths[*][get,put,post,delete,options,head,patch]',
@@ -93,7 +97,7 @@ export const TEMPLATES = [
     owner: 'API Governance Team',
   },
   {
-    id: 'operations-operationId-casing',
+    id: 'oas-x-operation-operationId-casing-warn',
     area: 'operations',
     statement: 'operationIds must be camelCase.',
     given: '$.paths[*][get,put,post,delete,options,head,patch]',
@@ -109,7 +113,7 @@ export const TEMPLATES = [
     owner: 'API Governance Team',
   },
   {
-    id: 'operations-summary-defined',
+    id: 'oas-x-operation-summary-truthy-warn',
     area: 'operations',
     statement: 'Every operation must have a short summary.',
     given: '$.paths[*][get,put,post,delete,options,head,patch]',
@@ -125,7 +129,7 @@ export const TEMPLATES = [
     owner: 'API Governance Team',
   },
   {
-    id: 'operations-summary-length',
+    id: 'oas-x-operation-summary-length-hint',
     area: 'operations',
     statement: 'Operation summaries must be concise — one short line.',
     given: '$.paths[*][get,put,post,delete,options,head,patch]',
@@ -141,7 +145,7 @@ export const TEMPLATES = [
     owner: 'API Governance Team',
   },
   {
-    id: 'operations-tags-defined',
+    id: 'oas-x-operation-tags-truthy-warn',
     area: 'operations',
     statement: 'Every operation must be tagged so it groups under a resource.',
     given: '$.paths[*][get,put,post,delete,options,head,patch]',
@@ -157,7 +161,7 @@ export const TEMPLATES = [
     owner: 'API Governance Team',
   },
   {
-    id: 'operations-get-requestBody-falsy',
+    id: 'oas-3-operation-get-requestBody-falsy-error',
     area: 'operations',
     statement: 'GET operations must not define a request body (OpenAPI 3.x).',
     given: '$.paths[*].get',
@@ -174,7 +178,7 @@ export const TEMPLATES = [
     owner: 'API Governance Team',
   },
   {
-    id: 'operations-get-body-parameter-falsy-oas2',
+    id: 'oas-2-operation-get-body-parameter-undefined-error',
     area: 'operations',
     statement: 'GET operations must not define a body or formData parameter (Swagger 2.0).',
     given: "$.paths[*].get.parameters[?(@.in=='body' || @.in=='formData')]",
@@ -185,13 +189,13 @@ export const TEMPLATES = [
     message: 'GET operations must not declare a body or formData parameter — GET is safe and idempotent by contract.',
     severity: 'error',
     framing: 'negative',
-    description: 'Swagger 2.0 has no requestBody object; a request body is a parameter with in: body (or in: formData). This is the 2.0 parity twin of operations-get-requestBody-falsy.',
+    description: 'Swagger 2.0 has no requestBody object; a request body is a parameter with in: body (or in: formData). This is the 2.0 parity twin of oas-3-operation-get-requestBody-falsy-error.',
     why: 'Bodies on GET are unreliable across the HTTP ecosystem and break the safe/idempotent guarantees consumers depend on.',
     docs: 'https://apievangelist.com/services/governance/rules/',
     owner: 'API Governance Team',
   },
   {
-    id: 'parameters-description-defined',
+    id: 'oas-x-parameter-description-truthy-warn',
     area: 'parameters',
     statement: 'Every parameter must be described.',
     given: '$.paths[*][*].parameters[*]',
@@ -207,7 +211,7 @@ export const TEMPLATES = [
     owner: 'API Governance Team',
   },
   {
-    id: 'parameters-name-casing',
+    id: 'oas-x-parameter-name-casing-hint',
     area: 'parameters',
     statement: 'Query and path parameter names must be camelCase.',
     given: '$.paths[*][*].parameters[*]',
@@ -223,7 +227,7 @@ export const TEMPLATES = [
     owner: 'API Governance Team',
   },
   {
-    id: 'responses-2xx-defined',
+    id: 'oas-x-operation-responses-truthy-warn',
     area: 'responses',
     statement: 'Every operation must define at least one success response.',
     given: '$.paths[*][get,put,post,delete,options,head,patch].responses',
@@ -239,7 +243,7 @@ export const TEMPLATES = [
     owner: 'API Governance Team',
   },
   {
-    id: 'responses-error-schema-defined',
+    id: 'oas-x-response-error-body-truthy-warn',
     area: 'responses',
     statement: 'Error responses (4xx/5xx) must carry a documented body schema.',
     given: "$.paths[*][*].responses[?(@property.match(/^(4|5)/))].content",
@@ -257,7 +261,7 @@ export const TEMPLATES = [
     owner: 'API Governance Team',
   },
   {
-    id: 'responses-description-defined',
+    id: 'oas-x-response-description-truthy-hint',
     area: 'responses',
     statement: 'Every response must have a description.',
     given: '$.paths[*][*].responses[*]',
@@ -273,7 +277,7 @@ export const TEMPLATES = [
     owner: 'API Governance Team',
   },
   {
-    id: 'schemas-property-description-defined',
+    id: 'oas-x-schema-property-description-truthy-info',
     area: 'schemas',
     statement: 'Every schema property must be described.',
     given: '$.components.schemas[*].properties[*]',
@@ -291,7 +295,7 @@ export const TEMPLATES = [
     owner: 'API Governance Team',
   },
   {
-    id: 'schemas-property-casing',
+    id: 'oas-x-schema-property-casing-warn',
     area: 'schemas',
     statement: 'Schema property names must be camelCase.',
     given: '$.components.schemas[*].properties',
@@ -309,7 +313,7 @@ export const TEMPLATES = [
     owner: 'API Governance Team',
   },
   {
-    id: 'schemas-example-defined',
+    id: 'oas-x-schema-example-truthy-hint',
     area: 'schemas',
     statement: 'Reusable schemas should carry an example.',
     given: '$.components.schemas[*]',
@@ -327,7 +331,7 @@ export const TEMPLATES = [
     owner: 'API Governance Team',
   },
   {
-    id: 'security-declared-defined',
+    id: 'oas-x-security-declared-truthy-error',
     area: 'security',
     statement: 'The API must declare how it is secured.',
     given: '$',
@@ -343,7 +347,7 @@ export const TEMPLATES = [
     owner: 'API Security Team',
   },
   {
-    id: 'naming-path-kebab-case',
+    id: 'oas-x-path-pattern-warn',
     area: 'naming',
     statement: 'Path segments must be kebab-case.',
     given: '$.paths',
@@ -359,7 +363,7 @@ export const TEMPLATES = [
     owner: 'API Governance Team',
   },
   {
-    id: 'servers-tag-description-defined',
+    id: 'oas-x-tag-description-truthy-hint',
     area: 'servers',
     statement: 'Every declared tag must have a description.',
     given: '$.tags[*]',
@@ -375,12 +379,13 @@ export const TEMPLATES = [
     owner: 'API Governance Team',
   },
   {
-    id: 'servers-base-url-defined',
+    id: 'oas-x-server-base-url-truthy-warn',
     area: 'servers',
     statement: 'The API must declare a base URL (a server URL in 3.x, a host in 2.0).',
     given: '$.servers[*]',
     field: 'url',
-    // Different fields (url vs host) → the emitter writes -oas3 / -oas2 twins.
+    // Different fields (url vs host) → the emitter stamps the version segment,
+    // emitting oas-3-… and oas-2-… twins.
     oas3: { given: '$.servers[*]', field: 'url' },
     oas2: { given: '$', field: 'host' },
     fn: 'truthy',
@@ -394,7 +399,7 @@ export const TEMPLATES = [
     owner: 'API Governance Team',
   },
   {
-    id: 'security-scheme-description-defined',
+    id: 'oas-x-security-scheme-description-truthy-info',
     area: 'security',
     statement: 'Every declared security scheme must be described.',
     given: '$.components.securitySchemes[*]',

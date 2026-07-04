@@ -28,8 +28,10 @@ Spectral Ruleset Studio forces that human work, and makes it fast:
   meaningful descriptions"* — and the act of turning it into a rule immediately exposes how vague the
   prose was. Meaningful how? Longer than what? On which operations? The tool flags the vague words
   and makes you answer. Answering **is** governance happening.
-- **Owned & named.** Every rule gets a convention-following id (`area-subject-check`, e.g.
-  `operations-summary-defined`) and a named owner. No anonymous copied YAML.
+- **Owned & named.** Every rule gets a convention-following id — the canonical API Commons
+  **Spec / Version / Property / Semantics / Severity** pattern
+  (`<spec>-<version>-<property>-<semantics>-<severity>`, e.g. `oas-x-operation-summary-truthy-warn`) —
+  and a named owner. No anonymous copied YAML. See [the id convention](#the-rule-id-convention).
 - **Grounded.** No rule ships without a description, a rationale (*why*), and a docs/policy link — so
   a red build is a teachable moment instead of a cryptic roadblock.
 - **Sparingly enforced.** New rules default to `warning`, not `error`. `error` — the build-failing
@@ -76,6 +78,36 @@ machine-readable:
 Each rule also sets `documentationUrl` to its docs link. The emitted rulesets lint cleanly under
 Spectral 6.
 
+## The rule-id convention
+
+Every id the studio emits (and validates on hand-authored rules) follows one canonical convention —
+the API Commons standard **Spec / Version / Property / Semantics / Severity**, the convention set out
+in the *[A Naming Convention for Your Governance Rules](https://apievangelist.com)* chapter of
+*Governance of APIs*:
+
+```
+<spec>-<version>-<property>-<semantics>-<severity>
+  oas       3          info-title          length      warn
+```
+
+- **spec** — the specification family: `oas` · `aas` · `arazzo` · `jsonschema`.
+- **version** — the spec version as a bare token: `3` (OpenAPI 3.x), `2` (Swagger 2.0), or `x` when a
+  rule is version-agnostic. Spec + version together are exactly Spectral's own format token
+  (`oas3` / `oas2`).
+- **property** — the root/nested property the rule targets, from the JSONPath `given` (+ `then.field`):
+  one or more tokens, e.g. `info-description`, `operation-summary`, `schema-property`, `path`.
+- **semantics** — *what* is checked, from the Spectral function: `defined`, `truthy`, `falsy`,
+  `undefined`, `pattern`, `casing`, `length`, `enumeration`, `alphabetical`, `schema`.
+- **severity** — `error` · `warn` · `info` · `hint`, carried in the name **and** mirrored by the
+  rule's own `severity`.
+
+Read `oas-3-info-title-length-warn` and you know, without opening the rule, that it is an OpenAPI 3.x
+rule on `info.title` enforcing a length at warning severity. Format twins stamp the version segment
+(`oas-3-…` / `oas-2-…`) rather than appending a suffix. The companion
+[governance-pipeline](https://github.com/api-commons/governance-pipeline) (`<org>-…`) and
+[spectral-owasp-ruleset](https://github.com/api-commons/spectral-owasp-ruleset) (`owasp-api<N>-…`)
+ids are domain-scoped variants of this same shape.
+
 ## Swagger 2.0 / OpenAPI 3.x parity
 
 Spectral auto-detects a document's format (`swagger: "2.0"` → `oas2`; `openapi: 3.x` → `oas3`) and
@@ -116,7 +148,7 @@ npx @api-common/spectral-ruleset-studio
 npx @api-common/spectral-ruleset-studio operations info -o .spectral.yaml
 
 # A specific rule by id
-npx @api-common/spectral-ruleset-studio --id operations-operationId-defined
+npx @api-common/spectral-ruleset-studio --id oas-x-operation-operationId-defined-error
 
 # List every template id
 npx @api-common/spectral-ruleset-studio --list

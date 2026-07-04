@@ -34,7 +34,7 @@ test('every emitted rule carries the required grounding fields', () => {
 
   for (const [id, rule] of Object.entries(doc.rules)) {
     // Convention-following id.
-    assert.ok(isValidRuleId(id), `id "${id}" follows area-subject-check`);
+    assert.ok(isValidRuleId(id), `id "${id}" follows spec-version-property-semantics-severity`);
     // Spectral essentials.
     assert.ok(rule.description && rule.description.trim(), `${id} has a description`);
     assert.ok(rule.message && rule.message.trim(), `${id} has a message`);
@@ -65,14 +65,14 @@ test('--no-ext still grounds via the description, and stays valid', () => {
 
 test('function options serialize into then.functionOptions correctly', () => {
   const doc = buildRuleset(sample);
-  const casing = doc.rules['schemas-property-casing'];
+  const casing = doc.rules['oas-x-schema-property-casing-warn'];
   assert.equal(casing.then.function, 'casing');
   assert.deepEqual(casing.then.functionOptions, { type: 'camel' });
-  const opId = doc.rules['operations-operationId-defined'];
+  const opId = doc.rules['oas-x-operation-operationId-defined-error'];
   assert.equal(opId.then.field, 'operationId');
   assert.equal(opId.then.function, 'defined');
   assert.equal(opId.then.functionOptions, undefined, 'defined takes no options');
-  const getBody = doc.rules['operations-get-requestBody-falsy'];
+  const getBody = doc.rules['oas-3-operation-get-requestBody-falsy-error'];
   assert.equal(getBody.then.field, 'requestBody');
   assert.equal(getBody.then.function, 'falsy');
 });
@@ -119,7 +119,7 @@ test('vaguenessHints surfaces undistilled prose', () => {
 
 // A divergent draft where the check is IDENTICAL on both paths (same field).
 const MULTIPATH_DRAFT = {
-  id: 'schemas-property-description-defined', area: 'schemas',
+  id: 'oas-x-schema-property-description-truthy-warn', area: 'schemas',
   statement: 'Every schema property must be described.',
   given: '$.components.schemas[*].properties[*]', field: 'description',
   oas3: { given: '$.components.schemas[*].properties[*]', field: 'description' },
@@ -130,7 +130,7 @@ const MULTIPATH_DRAFT = {
 
 // A divergent draft where the check DIFFERS (different field → twins).
 const TWIN_DRAFT = {
-  id: 'servers-base-url-defined', area: 'servers',
+  id: 'oas-x-server-base-url-truthy-warn', area: 'servers',
   statement: 'The API must declare a base URL.',
   given: '$.servers[*]', field: 'url',
   oas3: { given: '$.servers[*]', field: 'url' },
@@ -141,7 +141,7 @@ const TWIN_DRAFT = {
 
 // A 3.x-only concept.
 const OAS3_ONLY_DRAFT = {
-  id: 'operations-get-requestBody-falsy', area: 'operations',
+  id: 'oas-3-operation-get-requestBody-falsy-error', area: 'operations',
   statement: 'GET must not have a request body.',
   given: '$.paths[*].get', field: 'requestBody', formats: ['oas3'],
   fn: 'falsy', options: {}, message: 'No GET body.', severity: 'error',
@@ -202,16 +202,16 @@ test('emitter produces valid grounded YAML for oas2, oas3, and both targets', ()
     }
     // The 3.x-only rule must not appear in a 2.0-only ruleset.
     if (target === 'oas2') {
-      assert.equal(doc.rules['operations-get-requestBody-falsy'], undefined);
+      assert.equal(doc.rules['oas-3-operation-get-requestBody-falsy-error'], undefined);
     }
-    // In Both mode the twins appear with suffixed ids and per-rule formats.
+    // In Both mode the twins appear with version-stamped ids and per-rule formats.
     if (target === 'both') {
-      assert.ok(doc.rules['servers-base-url-defined-oas3'], 'oas3 twin present');
-      assert.ok(doc.rules['servers-base-url-defined-oas2'], 'oas2 twin present');
-      assert.deepEqual(doc.rules['servers-base-url-defined-oas2'].formats, ['oas2']);
+      assert.ok(doc.rules['oas-3-server-base-url-truthy-warn'], 'oas3 twin present');
+      assert.ok(doc.rules['oas-2-server-base-url-truthy-warn'], 'oas2 twin present');
+      assert.deepEqual(doc.rules['oas-2-server-base-url-truthy-warn'].formats, ['oas2']);
       // The multipath rule fires on both without a formats tag.
-      assert.ok(Array.isArray(doc.rules['schemas-property-description-defined'].given));
-      assert.equal(doc.rules['schemas-property-description-defined'].formats, undefined);
+      assert.ok(Array.isArray(doc.rules['oas-x-schema-property-description-truthy-warn'].given));
+      assert.equal(doc.rules['oas-x-schema-property-description-truthy-warn'].formats, undefined);
     }
   }
 });
@@ -238,13 +238,13 @@ test('the starter library and target catalog carry Swagger 2.0 coverage', () => 
 
 test('escapes exotic content safely through js-yaml round-trip', () => {
   const tricky = [{
-    id: 'schemas-note-pattern', area: 'schemas', statement: 'x', given: '$.components.schemas[*]',
+    id: 'oas-x-schema-note-pattern-warn', area: 'schemas', statement: 'x', given: '$.components.schemas[*]',
     field: '', fn: 'pattern', options: { match: '^:weird: "quotes" & <tags>$' },
     message: 'Must match: "quotes" & <tags>', severity: 'warn', framing: 'positive',
     description: 'Line one\nLine two', why: 'because', docs: 'https://x.test', owner: 'Team',
   }];
   const y = emitYaml(tricky, { generatedAt: '2026-07-03T12:00:00Z' });
   const doc = yaml.load(y);
-  assert.equal(doc.rules['schemas-note-pattern'].then.functionOptions.match, '^:weird: "quotes" & <tags>$');
-  assert.equal(doc.rules['schemas-note-pattern'].message, 'Must match: "quotes" & <tags>');
+  assert.equal(doc.rules['oas-x-schema-note-pattern-warn'].then.functionOptions.match, '^:weird: "quotes" & <tags>$');
+  assert.equal(doc.rules['oas-x-schema-note-pattern-warn'].message, 'Must match: "quotes" & <tags>');
 });

@@ -1,6 +1,6 @@
 [
   {
-    "id": "operations-operationId-defined",
+    "id": "oas-x-operation-operationId-defined-error",
     "area": "operations",
     "statement": "Every operation must have a unique operationId.",
     "given": "$.paths[*][get,put,post,delete,options,head,patch]",
@@ -20,7 +20,7 @@
     "where": "CI pipeline governance gate"
   },
   {
-    "id": "info-description-defined",
+    "id": "oas-x-info-description-truthy-warn",
     "area": "info",
     "statement": "Every API must have a non-empty description.",
     "given": "$.info",
@@ -36,7 +36,7 @@
     "owner": "API Governance Team"
   },
   {
-    "id": "schemas-property-casing",
+    "id": "oas-x-schema-property-casing-warn",
     "area": "schemas",
     "statement": "Schema property names must be camelCase.",
     "given": "$.components.schemas[*].properties",
@@ -54,11 +54,12 @@
     "owner": "API Governance Team"
   },
   {
-    "id": "operations-get-requestBody-falsy",
+    "id": "oas-3-operation-get-requestBody-falsy-error",
     "area": "operations",
     "statement": "GET operations must not define a request body.",
     "given": "$.paths[*].get",
     "field": "requestBody",
+    "formats": ["oas3"],
     "fn": "falsy",
     "options": {},
     "message": "GET operations must not declare a requestBody.",

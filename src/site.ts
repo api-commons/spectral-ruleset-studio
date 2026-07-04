@@ -123,17 +123,47 @@ function removeDraft(uid: string) {
   }
 }
 
-// Suggest a conventional id from area + subject words in the statement.
+// Map an authoring AREA to the singular property root used in a rule id.
+const AREA_ROOT: Record<string, string> = {
+  info: 'info',
+  operations: 'operation',
+  parameters: 'parameter',
+  responses: 'response',
+  schemas: 'schema',
+  security: 'security',
+  naming: 'path',
+  servers: 'server',
+};
+
+// The version segment for a draft, from its OpenAPI format posture.
+function versionToken(d: Draft): string {
+  const p = formatPosture(d);
+  return p === 'oas3' ? '3' : p === 'oas2' ? '2' : 'x';
+}
+
+// Suggest an id that follows the canonical convention:
+//   <spec>-<version>-<property>-<semantics>-<severity>
+// Spec is `oas` (this studio is OpenAPI-focused); version from format posture;
+// property from the area root + the targeted field (or the first statement
+// words); semantics from the chosen function; severity from the chosen level.
 function suggestId(d: Draft): string {
-  const subject = (d.field || d.statement || 'rule')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
+  const spec = 'oas';
+  const version = versionToken(d);
+  const root = AREA_ROOT[d.area] || d.area || 'rule';
+  const raw = d.field ? d.field : (d.statement || '').toLowerCase();
+  const subject = raw
+    .replace(/[^a-zA-Z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .split('-')
+    .filter(Boolean)
     .slice(0, 2)
-    .join('-') || 'rule';
-  const check = d.fn || 'check';
-  return `${d.area}-${subject}-${check}`.replace(/-+/g, '-');
+    .join('-');
+  const property = [root, subject].filter(Boolean).join('-');
+  const semantics = d.fn || 'check';
+  const severity = d.severity || 'warn';
+  return `${spec}-${version}-${property}-${semantics}-${severity}`
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
 }
 
 // ---------------------------------------------------------------------------
@@ -149,7 +179,7 @@ function renderCard(d: Draft): HTMLElement {
 
   card.innerHTML = `
     <div class="rc-head">
-      <input class="rc-id" data-k="id" value="${esc(d.id)}" placeholder="rule-id (area-subject-check)" spellcheck="false" />
+      <input class="rc-id" data-k="id" value="${esc(d.id)}" placeholder="rule-id (spec-version-property-semantics-severity)" spellcheck="false" />
       <select class="rc-area" data-k="area" title="Area">${areaOpts}</select>
       <span class="rc-badge"></span>
       <button class="rc-remove" type="button" title="Remove rule" aria-label="Remove rule">×</button>

@@ -20,7 +20,7 @@ import { getFunction, isValidRuleId, AREAS, SEVERITY_KEYS, getTargetMode } from 
 
 /**
  * @typedef {Object} RuleDraft
- * @property {string} id        rule id, convention `<area>-<subject>-<check>`
+ * @property {string} id        rule id, convention `<spec>-<version>-<property>-<semantics>-<severity>`
  * @property {string} area      one of catalog AREAS keys
  * @property {string} statement the source style-guide prose
  * @property {string} given     JSONPath target (the format-common / 3.x form)
@@ -50,7 +50,8 @@ const AREA_LABEL = new Map(AREAS.map((a) => [a.key, a.label]));
  * @property {string|string[]} given the JSONPath (an array = multipath)
  * @property {string} [field]        then.field for this variant
  * @property {string[]} [formats]    per-rule Spectral formats tag
- * @property {string} [idSuffix]     appended to the draft id for a twin (e.g. '-oas2')
+ * @property {string} [version]      concrete version token ('2'|'3') to stamp into the id's version segment
+ * @property {string} [idSuffix]     fallback suffix for a twin whose id doesn't follow the convention (e.g. '-oas2')
  */
 
 /** Normalize a target-mode key to one of 'both' | 'oas3' | 'oas2'. */
@@ -89,38 +90,67 @@ export function resolveVariants(d, mode = 'both') {
 
   // Divergent — both spec forms supplied.
   if (o2 && o3) {
-    if (m === 'oas3') return [{ given: o3.given, field: o3.field }];
-    if (m === 'oas2') return [{ given: o2.given, field: o2.field }];
+    if (m === 'oas3') return [{ given: o3.given, field: o3.field, version: '3' }];
+    if (m === 'oas2') return [{ given: o2.given, field: o2.field, version: '2' }];
     const sameField = String(o3.field || '') === String(o2.field || '');
     if (sameField) {
       // Identical check on two paths → one multipath rule (collapse if same path).
+      // The version segment stays `x` — it fires on both 2.0 and 3.x.
       const given = o3.given === o2.given ? o3.given : [o3.given, o2.given];
       return [{ given, field: o3.field }];
     }
-    // The check itself differs → format-tagged twins.
+    // The check itself differs → version-stamped twins (oas-3-… / oas-2-…).
     return [
-      { given: o3.given, field: o3.field, formats: ['oas3'], idSuffix: '-oas3' },
-      { given: o2.given, field: o2.field, formats: ['oas2'], idSuffix: '-oas2' },
+      { given: o3.given, field: o3.field, formats: ['oas3'], version: '3', idSuffix: '-oas3' },
+      { given: o2.given, field: o2.field, formats: ['oas2'], version: '2', idSuffix: '-oas2' },
     ];
   }
 
   // Only one spec form supplied → treat as a single-spec concept.
   if (o3 && !o2) {
     if (m === 'oas2') return [];
-    return [{ given: o3.given, field: o3.field, formats: m === 'both' ? ['oas3'] : undefined }];
+    return [{ given: o3.given, field: o3.field, formats: m === 'both' ? ['oas3'] : undefined, version: '3' }];
   }
   if (o2 && !o3) {
     if (m === 'oas3') return [];
-    return [{ given: o2.given, field: o2.field, formats: m === 'both' ? ['oas2'] : undefined }];
+    return [{ given: o2.given, field: o2.field, formats: m === 'both' ? ['oas2'] : undefined, version: '2' }];
   }
 
   // Format-agnostic, possibly narrowed by an explicit `formats` restriction.
   if (explicit) {
     const supports = (fmt) => explicit.some((f) => f === fmt || f.startsWith(fmt));
     if (m !== 'both' && !supports(m)) return []; // this mode is excluded
-    return [{ given: d.given, field: d.field, formats: m === 'both' ? explicit : undefined }];
+    // A single explicit format pins the version segment (e.g. ['oas3'] → 3).
+    let version;
+    if (explicit.length === 1) {
+      const mm = /^oas(\d)$/.exec(explicit[0]);
+      if (mm) version = mm[1];
+    }
+    return [{ given: d.given, field: d.field, formats: m === 'both' ? explicit : undefined, version }];
   }
   return [{ given: d.given, field: d.field }];
+}
+
+// ---------------------------------------------------------------------------
+// Compose a variant's EMITTED id from the draft's base id. When the variant
+// carries a concrete `version` and the base id follows the convention, the
+// version segment (dimension 2) is stamped in place — so a divergent draft
+// authored `oas-x-server-base-url-truthy-warn` emits `oas-3-…` and `oas-2-…`
+// twins. For a non-conforming hand-authored id we fall back to the `-oas3` /
+// `-oas2` suffix so the two twins never collide.
+// ---------------------------------------------------------------------------
+export function setRuleIdVersion(id, version) {
+  const m = /^(oas|aas|arazzo|jsonschema)-([a-zA-Z0-9]+)-(.+)$/.exec(String(id));
+  return m ? `${m[1]}-${version}-${m[3]}` : null;
+}
+
+export function emitRuleId(baseId, variant) {
+  const v = variant || {};
+  if (v.version) {
+    const swapped = setRuleIdVersion(baseId, v.version);
+    if (swapped) return swapped;
+  }
+  return baseId + (v.idSuffix || '');
 }
 
 // Words that usually mean the prose has not yet been distilled into something
@@ -154,7 +184,7 @@ export function validateDraft(draft) {
   const d = draft || {};
 
   if (!d.id) issues.push({ field: 'id', level: 'error', message: 'A rule id is required.' });
-  else if (!isValidRuleId(d.id)) issues.push({ field: 'id', level: 'error', message: 'Id must follow the convention area-subject-check (lower-kebab, e.g. operations-summary-defined).' });
+  else if (!isValidRuleId(d.id)) issues.push({ field: 'id', level: 'error', message: 'Id must follow the convention spec-version-property-semantics-severity (e.g. oas-x-operation-summary-truthy-warn).' });
 
   if (!d.given) issues.push({ field: 'given', level: 'error', message: 'A JSONPath `given` target is required.' });
   if (!d.fn || !getFunction(d.fn)) issues.push({ field: 'fn', level: 'error', message: 'Pick one of the 9 core Spectral functions.' });
@@ -321,7 +351,7 @@ export function buildRuleset(drafts, opts = {}) {
   for (const d of list) {
     if (!d || !d.id) continue;
     for (const v of resolveVariants(d, mode)) {
-      ruleset.rules[d.id + (v.idSuffix || '')] = buildRule(d, includeExtensions, v);
+      ruleset.rules[emitRuleId(d.id, v)] = buildRule(d, includeExtensions, v);
     }
   }
   return ruleset;
@@ -422,7 +452,7 @@ export function emitYaml(drafts, opts = {}) {
     for (const d of emit) {
       for (const v of resolveVariants(d, mode)) {
         const rule = buildRule(d, includeExtensions, v);
-        const block = yaml.dump({ [d.id + (v.idSuffix || '')]: rule }, DUMP_OPTS).trimEnd();
+        const block = yaml.dump({ [emitRuleId(d.id, v)]: rule }, DUMP_OPTS).trimEnd();
         out.push(indent(block, 2));
         out.push('');
       }

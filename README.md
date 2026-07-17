@@ -202,14 +202,16 @@ SPA and the CLI — so the YAML you copy from the page is byte-for-byte what the
 | `alphabetical` | keys are in order |
 | `schema` | validates against a JSON Schema |
 
-## Part of the API Commons toolbox
+## Part of API Commons
 
-[API Validator](https://validator.apicommons.org) ·
-[Spectral Reporter](https://reporter.apicommons.org) ·
-[API Discovery](https://discover.apicommons.org) ·
-[API Documentation](https://documentation.apicommons.org) ·
-[API Reusability](https://reusability.apicommons.org) ·
-[MCP Install](https://install.apicommons.org)
+An open, browser-first tool from **[API Commons](https://apicommons.org)** — free, no backend, your data stays in your browser. Browse the full set at **[apicommons.org/tools](https://apicommons.org/tools/)**.
+
+**Related tools**
+- [Ruleset Commons](https://rulesets.apicommons.org) — adopt a provenanced ruleset by reference
+- [Spectral Reporter](https://reporter.apicommons.org) — Spectral JSON → self-contained HTML report
+- [Spectral OWASP Ruleset](https://github.com/api-commons/spectral-owasp-ruleset) — OWASP API Security layer
+- [API Validator](https://validator.apicommons.org) — lint OpenAPI/AsyncAPI/Arazzo/JSON Schema in-browser
+- [Governance Coverage](https://coverage.apicommons.org) — how much of your API your rules actually check
 
 Open source and free to fork. When you want experts in the loop, API Evangelist offers
 [governance services](https://apievangelist.com/services/) — writing and grounding an owned ruleset

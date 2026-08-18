@@ -221,3 +221,10 @@ informs rather than punishes.
 ---
 
 © 2026 API Commons (Kin Lane). Licensed under Apache-2.0.
+
+## License
+
+**[Apache-2.0](LICENSE).**
+
+API Commons licenses **code** under Apache-2.0 and **artifacts** — schemas, rulesets,
+examples and API descriptions — under CC BY-NC-SA 4.0.
